@@ -127,41 +127,44 @@ namespace app::system
 	{
 		const auto entities = manager.filter<PlayerShip>();
 
-		if (entities.size() == 0)
+		Action* action = nullptr;
+
+		if (entities.size() > 0)
 		{
-			return;
+			Entity* const player_ship = entities.front();
+			assert(player_ship->has_component<Action>());
+
+			action = &player_ship->get_component<Action>();
 		}
-
-		Entity* const player_ship = entities.front();
-		assert(player_ship->has_component<Action>());
-
-		Action& action = player_ship->get_component<Action>();
 
 		for (int ch; ERR != (ch = getch());)
 		{
-			if (ch == ' ')
-			{
-				action.m_fire = true;
-			}
-			else if (ch == KEY_LEFT)
-			{
-				action.m_direction = Direction::LEFT;
-			}
-			else if (ch == KEY_RIGHT)
-			{
-				action.m_direction = Direction::RIGHT;
-			}
-			else if (ch == KEY_UP)
-			{
-				action.m_direction = Direction::UP;
-			}
-			else if (ch == KEY_DOWN)
-			{
-				action.m_direction = Direction::DOWN;
-			}
-			else if (ch == 'q')
+			if (ch == 'q')
 			{
 				manager.create_entity()->add_component<GameOver>();
+			}
+			else if (action)
+			{
+				if (ch == ' ')
+				{
+					action->m_fire = true;
+				}
+				else if (ch == KEY_LEFT)
+				{
+					action->m_direction = Direction::LEFT;
+				}
+				else if (ch == KEY_RIGHT)
+				{
+					action->m_direction = Direction::RIGHT;
+				}
+				else if (ch == KEY_UP)
+				{
+					action->m_direction = Direction::UP;
+				}
+				else if (ch == KEY_DOWN)
+				{
+					action->m_direction = Direction::DOWN;
+				}
 			}
 		} 
 	}
