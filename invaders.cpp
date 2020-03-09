@@ -235,7 +235,10 @@ namespace app::system
 
 	void cleanup_dead(EntityManager& manager)
 	{
-
+		for (Entity* entity : manager.filter<Dead>())
+		{
+			manager.destroy_entity(entity);
+		}
 	}
 
 	void draw(EntityManager& manager)
@@ -297,6 +300,18 @@ struct App final
 
 private:
 	static constexpr Vector PLAYER_START_POSITION { .m_x = 60, .m_y = 2 };
+	inline static const std::vector<Vector> ENEMY_START_POSITIONS
+	{
+		{ .m_x = 20, .m_y = 38 },
+		{ .m_x = 30, .m_y = 38 },
+		{ .m_x = 40, .m_y = 38 },
+		{ .m_x = 50, .m_y = 38 },
+		{ .m_x = 60, .m_y = 38 },
+		{ .m_x = 70, .m_y = 38 },
+		{ .m_x = 80, .m_y = 38 },
+		{ .m_x = 90, .m_y = 38 },
+		{ .m_x = 100, .m_y = 38 },
+	};
 
 	void setup_player_ship()
 	{
@@ -320,9 +335,35 @@ private:
 		player_ship->add_component<PlayerShip>();
 	}
 
+	void setup_enemy_ships()
+	{
+		for (const Vector& start_position : ENEMY_START_POSITIONS)
+		{
+			Entity* const enemy_ship = m_manager.create_entity();
+
+			Position& position = enemy_ship->add_component<Position>();
+			position.m_position = start_position;
+
+			Action& action = enemy_ship->add_component<Action>();
+			Ship& ship = enemy_ship->add_component<Ship>();
+			ship.m_health = 10;
+			ship.m_speed = 1;
+
+			Weapon& weapon = enemy_ship->add_component<Weapon>();
+			weapon.m_cooldown = 5;
+
+			AABB& aabb = enemy_ship->add_component<AABB>();
+			Drawable& drawable = enemy_ship->add_component<Drawable>();
+			drawable.m_sprite = 'o';
+
+			enemy_ship->add_component<EnemyShip>();
+		}
+	}
+
 	void setup_initial_position()
 	{
 		setup_player_ship();
+		setup_enemy_ships();
 	}
 
 	EntityManager m_manager;
@@ -338,6 +379,6 @@ int main()
 	{
 		app.run_step();
 		std::this_thread::sleep_for(std::chrono::milliseconds(10));
-		// printw("%d", i++);
+		// TODO: calculate fps
 	}
 }
