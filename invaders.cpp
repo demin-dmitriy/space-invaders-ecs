@@ -227,8 +227,6 @@ namespace app::system
 			Position& position = entity->get_component<Position>();
 
 			position.m_position = position.m_position + bullet.m_velocity;
-
-			// TODO: remove out of bounds bullets
 		}
 	}
 
@@ -271,6 +269,17 @@ namespace app::system
 			if (weapon.m_time_to_ready > 0)
 			{
 				weapon.m_time_to_ready -= 1;
+			}
+		}
+	}
+
+	void kill_oob_entities(EntityManager& manager)
+	{
+		for (Entity* entity : manager.filter<Position>())
+		{
+			if (not contains(WINDOW_AABB, entity->get_component<Position>().m_position))
+			{
+				manager.destroy_entity(entity);
 			}
 		}
 	}
@@ -338,6 +347,7 @@ struct App final
 		app::system::detect_collisions(m_manager);
 		app::system::deal_damage(m_manager);
 		app::system::recharge_weapons(m_manager);
+		app::system::kill_oob_entities(m_manager);
 		app::system::cleanup_dead(m_manager);
 		app::system::cleanup_collisions(m_manager);
 		app::system::draw(m_manager);
