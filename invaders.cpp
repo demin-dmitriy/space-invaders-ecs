@@ -5,6 +5,9 @@
 #include <string>
 #include <thread>
 
+constexpr int WINDOW_X_SIZE = 120;
+constexpr int WINDOW_Y_SIZE = 40;
+
 struct Vector final
 {
 	int m_x = 0;
@@ -40,6 +43,16 @@ struct AABB final : ComponentI
 	Vector m_top_right;
 };
 
+const AABB WINDOW_AABB = []
+	{
+		AABB aabb;
+
+		aabb.m_bottom_left = { .m_x = 0, .m_y = 0 };
+		aabb.m_top_right = { .m_x = WINDOW_X_SIZE, .m_y = WINDOW_Y_SIZE };
+
+		return aabb;
+	}();
+
 bool do_intersect(const Vector& a_position, const AABB& a_aabb, const Vector& b_position, const AABB& b_aabb)
 {
 	const Vector a_bottom_left = a_aabb.m_bottom_left + a_position;
@@ -53,9 +66,14 @@ bool do_intersect(const Vector& a_position, const AABB& a_aabb, const Vector& b_
 		and a_top_right.m_y >= b_bottom_left.m_y;
 }
 
+bool contains(const AABB& aabb, const Vector& point)
+{
+	return do_intersect(Vector{}, aabb, point, AABB{});
+}
+
 struct Drawable final : ComponentI
 {
-	std::string m_sprite;
+	char m_sprite;
 };
 
 struct Weapon final : ComponentI
@@ -176,7 +194,23 @@ namespace app::system
 
 	void execute_actions(EntityManager& manager)
 	{
+		for (Entity* entity : manager.filter<Action>())
+		{
+			Action& action = entity->get_component<Action>();
 
+			Ship* ship = entity->try_get_component<Ship>();
+			Position* position = entity->try_get_component<Position>();
+
+			if (ship and position)
+			{
+				position->m_position = position->m_position + ship->m_speed * direction_to_vector(action.m_direction);
+			}
+
+			// TODO: handle firing bullets
+
+			action.m_direction = Direction::NONE;
+			action.m_fire = false;
+		}
 	}
 
 	void fly_bullets(EntityManager& manager)
@@ -206,6 +240,19 @@ namespace app::system
 
 	void draw(EntityManager& manager)
 	{
+		erase();
+
+		for (Entity* entity : manager.filter<Drawable>())
+		{
+			Drawable& drawable = entity->get_component<Drawable>();
+			Position* position = entity->try_get_component<Position>();
+
+			if (position and contains(WINDOW_AABB, position->m_position))
+			{
+				mvaddch(WINDOW_Y_SIZE - position->m_position.m_y, position->m_position.m_x, drawable.m_sprite);
+			}
+		}
+
 		refresh();
 	}
 };
@@ -219,6 +266,7 @@ struct App final
 		keypad(stdscr, true);
 		noecho();
 		nodelay(stdscr, true);
+		curs_set(0);
 
 		setup_initial_position();
 	}
@@ -248,17 +296,33 @@ struct App final
 	}
 
 private:
+	static constexpr Vector PLAYER_START_POSITION { .m_x = 60, .m_y = 2 };
+
+	void setup_player_ship()
+	{
+		Entity* const player_ship = m_manager.create_entity();
+
+		Position& position = player_ship->add_component<Position>();
+		position.m_position = PLAYER_START_POSITION;
+
+		Action& action = player_ship->add_component<Action>();
+		Ship& ship = player_ship->add_component<Ship>();
+		ship.m_health = 100;
+		ship.m_speed = 1;
+
+		Weapon& weapon = player_ship->add_component<Weapon>();
+		weapon.m_cooldown = 5;
+
+		AABB& aabb = player_ship->add_component<AABB>();
+		Drawable& drawable = player_ship->add_component<Drawable>();
+		drawable.m_sprite = 'X';
+
+		player_ship->add_component<PlayerShip>();
+	}
+
 	void setup_initial_position()
 	{
-		Entity* player_ship = m_manager.create_entity();
-
-		player_ship->add_component<Position>();
-		player_ship->add_component<Action>();
-		player_ship->add_component<Ship>();
-		player_ship->add_component<Weapon>();
-		player_ship->add_component<AABB>();
-		player_ship->add_component<Drawable>();
-		player_ship->add_component<PlayerShip>();
+		setup_player_ship();
 	}
 
 	EntityManager m_manager;
@@ -273,7 +337,7 @@ int main()
 	while (not app.game_over())
 	{
 		app.run_step();
-		std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-		printw("%d", i++);
+		std::this_thread::sleep_for(std::chrono::milliseconds(10));
+		// printw("%d", i++);
 	}
 }
