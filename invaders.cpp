@@ -76,10 +76,18 @@ struct Drawable final : ComponentI
 	char m_sprite;
 };
 
+struct Bullet final : ComponentI
+{
+	Vector m_velocity;
+	int m_damage = 0;
+};
+
 struct Weapon final : ComponentI
 {
 	int m_cooldown = 0;
 	int m_time_to_ready = 0;
+	Vector m_relative_position;
+	Bullet m_bullet_template;
 };
 
 enum class Direction
@@ -110,17 +118,10 @@ struct Ship final : ComponentI
 {
 	int m_health = 0;
 	int m_speed = 0;
-	// TODO: add momentum
 };
 
 struct EnemyShip final : ComponentI
 {
-};
-
-struct Bullet final : ComponentI
-{
-	Vector m_velocity;
-	int m_damage = 0;
 };
 
 struct PlayerShip final : ComponentI
@@ -206,10 +207,20 @@ namespace app::system
 			if (ship and position)
 			{
 				position->m_position = position->m_position + ship->m_speed * direction_to_vector(action.m_direction);
+			}
 
-				if (action.m_fire)
+			if (action.m_fire and position)
+			{
+				if (Weapon* weapon = entity->try_get_component<Weapon>())
 				{
-
+					if (weapon->m_time_to_ready == 0)
+					{
+						Entity* bullet_entity = manager.create_entity();
+						bullet_entity->add_component<Position>().m_position = position->m_position + weapon->m_relative_position;
+						bullet_entity->add_component<AABB>();
+						bullet_entity->add_component<Drawable>().m_sprite = '|';
+						bullet_entity->add_component<Bullet>(weapon->m_bullet_template);
+					}
 				}
 			}
 
@@ -256,7 +267,6 @@ namespace app::system
 
 	void deal_damage(EntityManager& manager)
 	{
-
 
 	}
 
@@ -388,6 +398,9 @@ private:
 
 		Weapon& weapon = player_ship->add_component<Weapon>();
 		weapon.m_cooldown = 5;
+		weapon.m_relative_position = Vector { .m_x = 0, .m_y = 1 };
+		weapon.m_bullet_template.m_velocity = Vector { .m_x = 0, .m_y = 1 };
+		weapon.m_bullet_template.m_damage = 10;
 
 		AABB& aabb = player_ship->add_component<AABB>();
 		Drawable& drawable = player_ship->add_component<Drawable>();
@@ -412,6 +425,9 @@ private:
 
 			Weapon& weapon = enemy_ship->add_component<Weapon>();
 			weapon.m_cooldown = 5;
+			weapon.m_relative_position = Vector { .m_x = 0, .m_y = -1 };
+			weapon.m_bullet_template.m_velocity = Vector { .m_x = 0, .m_y = -1 };
+			weapon.m_bullet_template.m_damage = 10;
 
 			AABB& aabb = enemy_ship->add_component<AABB>();
 			Drawable& drawable = enemy_ship->add_component<Drawable>();

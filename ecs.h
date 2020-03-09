@@ -155,8 +155,10 @@ inline void EntityManager::destroy_entity(Entity* entity)
 		entity->remove_component_edge(i.first);
 	}
 
-	assert(entity->m_index < m_entities.size());
-	m_entities[entity->m_index] = std::move(m_entities.back());
+	const size_t entity_index = entity->m_index;
+	assert(entity_index < m_entities.size());
+	m_entities[entity_index] = std::move(m_entities.back());
+	m_entities[entity_index]->m_index = entity_index;
 	m_entities.pop_back();
 }
 
