@@ -220,6 +220,8 @@ namespace app::system
 						bullet_entity->add_component<AABB>();
 						bullet_entity->add_component<Drawable>().m_sprite = '|';
 						bullet_entity->add_component<Bullet>(weapon->m_bullet_template);
+
+						weapon->m_time_to_ready = weapon->m_cooldown;
 					}
 				}
 			}
@@ -267,7 +269,33 @@ namespace app::system
 
 	void deal_damage(EntityManager& manager)
 	{
+		for (Entity* entity : manager.filter<Collision>())
+		{
+			Collision& collision = entity->get_component<Collision>();
 
+			Entity* bullet_entity = collision.m_a;
+			Entity* ship_entity = collision.m_b;
+
+			if (not bullet_entity->has_component<Bullet>())
+			{
+				std::swap(bullet_entity, ship_entity);
+			}
+
+			Bullet* bullet = bullet_entity->try_get_component<Bullet>();
+			Ship* ship = ship_entity->try_get_component<Ship>();
+
+			if (bullet and ship)
+			{
+				ship->m_health = std::max(0, ship->m_health - bullet->m_damage);
+
+				if (ship->m_health == 0)
+				{
+					ship_entity->add_component<Dead>();
+				}
+
+				manager.destroy_entity(bullet_entity);
+			}
+		}
 	}
 
 	void recharge_weapons(EntityManager& manager)
@@ -397,7 +425,7 @@ private:
 		ship.m_speed = 1;
 
 		Weapon& weapon = player_ship->add_component<Weapon>();
-		weapon.m_cooldown = 5;
+		weapon.m_cooldown = 3;
 		weapon.m_relative_position = Vector { .m_x = 0, .m_y = 1 };
 		weapon.m_bullet_template.m_velocity = Vector { .m_x = 0, .m_y = 1 };
 		weapon.m_bullet_template.m_damage = 10;
@@ -420,7 +448,7 @@ private:
 
 			Action& action = enemy_ship->add_component<Action>();
 			Ship& ship = enemy_ship->add_component<Ship>();
-			ship.m_health = 10;
+			ship.m_health = 20;
 			ship.m_speed = 1;
 
 			Weapon& weapon = enemy_ship->add_component<Weapon>();
