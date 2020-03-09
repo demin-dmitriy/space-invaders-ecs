@@ -78,7 +78,7 @@ struct Drawable final : ComponentI
 
 struct Weapon final : ComponentI
 {
-	int m_cooldown = 0;
+	int m_cooldown = 0; // TODO: need one more variable
 };
 
 enum class Direction
@@ -109,6 +109,7 @@ struct Ship final : ComponentI
 {
 	int m_health = 0;
 	int m_speed = 0;
+	// TODO: add momentum
 };
 
 struct EnemyShip final : ComponentI
@@ -204,9 +205,12 @@ namespace app::system
 			if (ship and position)
 			{
 				position->m_position = position->m_position + ship->m_speed * direction_to_vector(action.m_direction);
-			}
 
-			// TODO: handle firing bullets
+				if (action.m_fire)
+				{
+
+				}
+			}
 
 			action.m_direction = Direction::NONE;
 			action.m_fire = false;
@@ -215,16 +219,43 @@ namespace app::system
 
 	void fly_bullets(EntityManager& manager)
 	{
+		for (Entity* entity : manager.filter<Bullet>())
+		{
+			Bullet& bullet = entity->get_component<Bullet>();
+			assert(entity->has_component<Position>());
+			Position& position = entity->get_component<Position>();
 
+			position.m_position = position.m_position + bullet.m_velocity;
+		}
 	}
 
 	void detect_collisions(EntityManager& manager)
 	{
+		const auto entities = manager.filter<AABB>();
 
+		for (size_t i = 0; i < entities.size(); ++i)
+		{
+			for (size_t j = i + 1; j < entities.size(); ++j)
+			{
+				const AABB& a_aabb = entities[i]->get_component<AABB>();
+				const Position& a_position = entities[i]->get_component<Position>();
+				const AABB& b_aabb = entities[j]->get_component<AABB>();
+				const Position& b_position = entities[j]->get_component<Position>();
+
+				if (do_intersect(a_position.m_position, a_aabb, b_position.m_position, b_aabb))
+				{
+					Entity* collision_entity = manager.create_entity();
+					Collision& collision = collision_entity->add_component<Collision>();
+					collision.m_a = entities[i];
+					collision.m_b = entities[j];
+				}
+			}
+		}
 	}
 
 	void deal_damage(EntityManager& manager)
 	{
+
 
 	}
 
@@ -236,6 +267,14 @@ namespace app::system
 	void cleanup_dead(EntityManager& manager)
 	{
 		for (Entity* entity : manager.filter<Dead>())
+		{
+			manager.destroy_entity(entity);
+		}
+	}
+
+	void cleanup_collisions(EntityManager& manager)
+	{
+		for (Entity* entity : manager.filter<Collision>())
 		{
 			manager.destroy_entity(entity);
 		}
@@ -289,6 +328,7 @@ struct App final
 		app::system::deal_damage(m_manager);
 		app::system::recharge_weapons(m_manager);
 		app::system::cleanup_dead(m_manager);
+		app::system::cleanup_collisions(m_manager);
 		app::system::draw(m_manager);
 	}
 
