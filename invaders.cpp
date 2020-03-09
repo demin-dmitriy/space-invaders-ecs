@@ -78,7 +78,8 @@ struct Drawable final : ComponentI
 
 struct Weapon final : ComponentI
 {
-	int m_cooldown = 0; // TODO: need one more variable
+	int m_cooldown = 0;
+	int m_time_to_ready = 0;
 };
 
 enum class Direction
@@ -226,6 +227,8 @@ namespace app::system
 			Position& position = entity->get_component<Position>();
 
 			position.m_position = position.m_position + bullet.m_velocity;
+
+			// TODO: remove out of bounds bullets
 		}
 	}
 
@@ -261,7 +264,15 @@ namespace app::system
 
 	void recharge_weapons(EntityManager& manager)
 	{
+		for (Entity* entity : manager.filter<Weapon>())
+		{
+			Weapon& weapon = entity->get_component<Weapon>();
 
+			if (weapon.m_time_to_ready > 0)
+			{
+				weapon.m_time_to_ready -= 1;
+			}
+		}
 	}
 
 	void cleanup_dead(EntityManager& manager)
